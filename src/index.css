@@ -6,3 +6,26 @@ layer(base);
 @theme {
   --font-sans: 'satoshi', 'sans-sarif';
 }
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  * {
+    @apply transition-colors duration-150 ease-linear;
+  }
+
+  /** Pretty up the scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-1;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply rounded-full bg-gray-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-gray-300;
+  }
+}

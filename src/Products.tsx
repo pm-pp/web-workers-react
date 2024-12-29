@@ -5,6 +5,7 @@ import {
   useCallback,
   ChangeEventHandler
 } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 const useWorker = (
   setProducts: (products: Product[]) => void,
@@ -139,9 +140,18 @@ export function Products() {
       [products, worker]
     );
 
+  const listRef = useRef(null);
+  const listVirtualizer = useVirtualizer({
+    count: filteredProducts.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 114,
+    overscan: 2,
+    gap: 16
+  });
+
   return (
     <div className="flex flex-col gap-4 min-w-xs">
-      <div className="filter-container flex gap-2 justify-between">
+      <div className="flex gap-2 justify-between">
         <select
           value={
             products.length === filteredProducts.length &&
@@ -151,7 +161,7 @@ export function Products() {
           }
           disabled={status !== 'idle'}
           onChange={handleFilterProduct}
-          className="px-4 py-2 flex-1 bg-white font-bold outline-none border-2 rounded border-purple-600 appearance-none bg-no-repeat bg-[right_10px_center] disabled:bg-purple-300 disabled:text-purple-200"
+          className="px-4 py-2 flex-1 bg-white font-bold outline-none border-2 rounded border-purple-600 appearance-none bg-no-repeat bg-[right_10px_center] disabled:bg-purple-300 disabled:text-purple-200 hover:not-[:disabled]:bg-purple-700 hover:not-[:disabled]:text-white"
           style={{
             backgroundImage:
               'url(\'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 4 5"><path fill="%23333" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>\')'
@@ -168,7 +178,7 @@ export function Products() {
         <button
           onClick={handleReset}
           disabled={status !== 'idle'}
-          className="rounded-sm border-2 border-purple-600 px-4 py-2 text-sm font-bold hover:not-[:disabled]:bg-purple-700 hover:not-[:disabled]:text-white disabled:bg-purple-300 disabled:text-purple-200"
+          className="rounded-sm border-2 border-purple-600 px-4 py-2 text-sm font-bold disabled:bg-purple-300 disabled:text-purple-200 hover:not-[:disabled]:bg-purple-700 hover:not-[:disabled]:text-white"
         >
           Reset
         </button>
@@ -182,18 +192,31 @@ export function Products() {
         <p className="text-center">{filteredProducts.length} products</p>
       )}
 
-      <ul className="product-list flex flex-col gap-4">
-        {filteredProducts.map((product) => (
-          <li
-            key={product.id}
-            className="product-card flex flex-col gap-1 border rounded p-4 bg-white"
-          >
-            <div className="product-name text-lg font-bold">{product.name}</div>
-            <div className="product-price">${product.price}</div>
-            <div className="product-category text-sm">({product.category})</div>
-          </li>
-        ))}
-      </ul>
+      <div ref={listRef} className="grow overflow-auto">
+        <ul
+          className="relative w-full flex flex-col gap-4"
+          style={{ height: `${listVirtualizer.getTotalSize()}px` }}
+        >
+          {listVirtualizer.getVirtualItems().map((item) => {
+            const product = filteredProducts[item.index];
+
+            return (
+              <li
+                key={item.key}
+                className="absolute top-0 left-0 w-full flex flex-col gap-1 border rounded p-4 bg-white"
+                style={{
+                  height: `${item.size}px`,
+                  transform: `translateY(${item.start}px)`
+                }}
+              >
+                <div className="text-lg font-bold">{product.name}</div>
+                <div>${product.price}</div>
+                <div className="text-sm">({product.category})</div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }
