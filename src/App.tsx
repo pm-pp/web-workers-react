@@ -1,10 +1,4 @@
-import {
-  useRef,
-  useEffect,
-  useReducer,
-  useCallback,
-  ChangeEventHandler
-} from 'react';
+import { useRef, useEffect, useReducer, useCallback } from 'react';
 import { ProductList } from './ProductList';
 
 const useWorker = (
@@ -43,11 +37,10 @@ const useWorker = (
 
 const CATEGORIES = ['Electronics', 'Clothing', 'Toys'];
 
-type Status = 'idle' | 'loading' | 'filtering' | 'resetting';
+type Status = 'idle' | 'filtering' | 'resetting';
 
 const STATUS_MESSAGES = {
   idle: 'No products found matching the filters.',
-  loading: 'Loading...',
   filtering: 'Filtering...',
   resetting: 'Resetting...'
 } as Record<Status, string>;
@@ -56,11 +49,14 @@ type State = {
   status: Status;
   products: Product[];
   filteredProducts: Product[];
+  category: Product['category'];
+  name: string;
 };
 
 type Action =
   | { type: 'set-products'; products: Product[] }
   | { type: 'set-filtered-products'; filteredProducts: Product[] }
+  | { type: 'search'; key: 'category' | 'name'; value: string }
   | { type: 'reset' }
   | { type: 'filtering' }
   | { type: 'resetting' };
@@ -68,7 +64,9 @@ type Action =
 const INITIAL_STATE: State = {
   status: 'idle',
   products: [],
-  filteredProducts: []
+  filteredProducts: [],
+  category: '',
+  name: ''
 };
 
 const reducer = (state: State, action: Action): State => {
@@ -86,6 +84,12 @@ const reducer = (state: State, action: Action): State => {
         filteredProducts: action.filteredProducts,
         status: 'idle'
       };
+    case 'search':
+      return {
+        ...state,
+        status: 'filtering',
+        [action.key]: action.value
+      };
     case 'filtering':
       return {
         ...state,
@@ -98,6 +102,8 @@ const reducer = (state: State, action: Action): State => {
       };
     case 'reset':
       return {
+        category: '',
+        name: '',
         status: 'idle',
         products: state.products,
         filteredProducts: state.products
@@ -108,10 +114,8 @@ const reducer = (state: State, action: Action): State => {
 };
 
 function App() {
-  const [{ status, filteredProducts, products }, dispatch] = useReducer(
-    reducer,
-    INITIAL_STATE
-  );
+  const [{ name, category, status, filteredProducts, products }, dispatch] =
+    useReducer(reducer, INITIAL_STATE);
   const setProducts = useCallback((products: Product[]) => {
     dispatch({ type: 'set-products', products });
   }, []);
@@ -125,34 +129,36 @@ function App() {
     }, 500); // Simulating a short delay for visual feedback
   }, []);
   const worker = useWorker(setProducts, setFilteredProducts);
-  const handleFilterProduct: ChangeEventHandler<HTMLSelectElement> =
-    useCallback(
-      (event) => {
-        if (worker) {
-          dispatch({ type: 'filtering' });
-          worker.postMessage({
-            type: 'filter',
-            filter: event.target.value,
-            products
-          } as WWInput);
-        }
-      },
-      [products, worker]
-    );
+  const handleFilterProduct = useCallback(
+    (key: 'category' | 'name', value: string) => {
+      if (worker) {
+        dispatch({ type: 'search', key, value });
+
+        worker.postMessage({
+          type: 'filter',
+          products,
+          category,
+          name,
+          [key]: value
+        } as WWInput);
+      }
+    },
+    [category, name, products, worker]
+  );
 
   return (
     <main className="p-4 h-screen flex justify-center">
-      <div className="flex flex-col gap-4 min-w-xs">
+      <search
+        className="flex flex-col gap-4 min-w-xs"
+        title="List and search products"
+      >
         <div className="flex gap-2 justify-between">
           <select
-            value={
-              products.length === filteredProducts.length &&
-              status !== 'filtering'
-                ? ''
-                : undefined
-            }
+            value={category}
             disabled={status !== 'idle'}
-            onChange={handleFilterProduct}
+            onChange={(event) =>
+              handleFilterProduct('category', event.target.value)
+            }
             className="px-4 py-2 flex-1 bg-white font-bold outline-none border-2 rounded border-purple-600 appearance-none bg-no-repeat bg-[right_10px_center] disabled:bg-purple-300 disabled:text-purple-200 hover:not-[:disabled]:bg-purple-700 hover:not-[:disabled]:text-white"
             style={{
               backgroundImage:
@@ -176,6 +182,14 @@ function App() {
           </button>
         </div>
 
+        <input
+          type="search"
+          value={name}
+          placeholder="Search by product name..."
+          className="w-full rounded-sm border-2 border-purple-600 px-4 py-2 text-sm disabled:text-purple-200 outline-none"
+          onChange={(event) => handleFilterProduct('name', event.target.value)}
+        />
+
         {(status !== 'idle' ||
           (filteredProducts.length === 0 && status === 'idle')) && (
           <p className="text-center">{STATUS_MESSAGES[status]}</p>
@@ -185,7 +199,7 @@ function App() {
         )}
 
         <ProductList products={filteredProducts} />
-      </div>
+      </search>
     </main>
   );
 }
