@@ -156,6 +156,7 @@ function App() {
           <select
             value={category}
             disabled={status !== 'idle'}
+            aria-label="Filter by category"
             onChange={(event) =>
               handleFilterProduct('category', event.target.value)
             }
